@@ -53,7 +53,8 @@ assert len(hooks) == 2, events
 assert events[hooks[0]] == 'step:omarchy-hook pre-refresh-pacman', events
 assert events[hooks[1]] == 'step:omarchy-hook post-update', events
 assert events[hooks[0] - 1] == 'sudo -k' and events[hooks[0] + 1] == 'sudo -k', events
-transaction = next(i for i, event in enumerate(events) if event.startswith('step:pacman '))
+# Package queries are not transactions.
+transaction = next(i for i, event in enumerate(events) if event.startswith('step:pacman ') and not event.startswith(('step:pacman -Q', 'step:pacman -Sl')))
 assert hooks[0] < transaction < auth < hooks[1], events
 assert 'sudo -k' in events[transaction:auth], events
 PY
@@ -209,7 +210,7 @@ for pattern in 'pacman -Syyuu*' 'pacman -S --needed*'; do
   python3 - "$SUDO_TEST_LOG" "$pattern" <<'PY'
 import sys
 events = open(sys.argv[1]).read().splitlines()
-transactions = [e for e in events if e.startswith('step:pacman ')]
+transactions = [e for e in events if e.startswith('step:pacman ') and not e.startswith(('step:pacman -Q', 'step:pacman -Sl'))]
 assert len(transactions) == (1 if sys.argv[2].startswith('pacman -Syyuu') else 2), events
 assert all(e in ('sudo -h', 'sudo -k') or e.startswith('sudo -N ') for e in events if e.startswith('sudo ')), events
 PY
