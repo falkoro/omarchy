@@ -82,5 +82,13 @@ hypr_focus_monitor "$focused"
   while hyprctl clients -j | SCREENSAVER=org.omarchy.screensaver jq -e 'any(.[]; .mapped and .class == env.SCREENSAVER)' >/dev/null; do
     IFS= read -r -u "$events" line || exit
   done
+  # A window that opened while a screensaver showed mapped onto its special workspace, which nothing shows
+  # again. Hand it to the workspace its monitor has showing.
+  hyprctl clients -j | jq -r --argjson monitors "$(hyprctl monitors -j)" '.[]
+    | select(.workspace.name // "" | startswith("special:screensaver-")) as $client
+    | $monitors[] | select(.id == $client.monitor) | "\($client.address) \(.activeWorkspace.id)"' |
+    while read -r address workspace_id; do
+      hyprctl dispatch "hl.dsp.window.move({ workspace = \"$workspace_id\", follow = false, window = \"address:$address\" })"
+    done
   hypr_focus_monitor "$focused"
 ) >/dev/null 2>&1 &

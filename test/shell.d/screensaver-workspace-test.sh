@@ -23,7 +23,7 @@ cat >"$tmpdir/bin/hyprctl" <<'SH'
 printf '%s\n' "$*" >>"$TEST_DIR/calls"
 case "$*" in
   'monitors -j')
-    printf '[{"name":"DP-1","specialWorkspace":{"name":""}},{"name":"DP-2","specialWorkspace":{"name":"special:scratchpad"}}]\n'
+    printf '[{"id":0,"name":"DP-1","activeWorkspace":{"id":3},"specialWorkspace":{"name":""}},{"id":1,"name":"DP-2","activeWorkspace":{"id":7},"specialWorkspace":{"name":"special:scratchpad"}}]\n'
     ;;
   'clients -j')
     cat "$TEST_DIR/clients.json"
@@ -68,7 +68,7 @@ printf 'closewindow>>1\n' >&"$events"
 sleep 0.5
 grep -q 'hl.dsp.focus' "$tmpdir/calls" && fail "focus waits until the last screensaver has closed" "$(<"$tmpdir/calls")"
 pass "focus waits until the last screensaver has closed"
-printf '[{"class":"org.omarchy.screensaver","mapped":false}]\n' >"$tmpdir/clients.json"
+printf '[{"class":"org.omarchy.screensaver","mapped":false},{"class":"chromium","mapped":true,"address":"0xabc","monitor":0,"workspace":{"name":"special:screensaver-DP-1"}},{"class":"foot","mapped":true,"address":"0xdef","monitor":1,"workspace":{"name":"special:scratchpad"}}]\n' >"$tmpdir/clients.json"
 printf 'closewindow>>2\n' >&"$events"
 for (( attempt = 0; attempt < 100; attempt++ )); do
   grep -q 'hl.dsp.focus({ monitor = "DP-1" })' "$tmpdir/calls" && break
@@ -77,6 +77,10 @@ done
 grep -q 'hl.dsp.focus({ monitor = "DP-1" })' "$tmpdir/calls" ||
   fail "focus returns to the monitor that had it once the screensaver closes" "$(<"$tmpdir/calls")"
 pass "focus returns to the monitor that had it once the screensaver closes"
+grep -qF 'hl.dsp.window.move({ workspace = "3", follow = false, window = "address:0xabc" })' "$tmpdir/calls" ||
+  fail "a window opened under the screensaver moves to its monitor's workspace" "$(<"$tmpdir/calls")"
+grep -q 'address:0xdef' "$tmpdir/calls" && fail "a window on a shared special workspace stays there" "$(<"$tmpdir/calls")"
+pass "a window opened under the screensaver moves to its monitor's workspace"
 
 # Screensavers can close while the launcher is still waiting on another monitor, consuming their events.
 kill "$(<"$tmpdir/socat.pid")"
