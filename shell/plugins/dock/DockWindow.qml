@@ -24,19 +24,30 @@ PanelWindow {
   readonly property var monitor: Hyprland.monitorFor(screen)
   readonly property var workspace: monitor ? monitor.activeWorkspace : null
   readonly property int workspaceId: workspace ? workspace.id : -1
-  // The most fullscreen window on the workspace, as Hyprland counts it: 1 is
-  // maximized, and 2 or 3 fullscreen.
-  readonly property int fullscreenMode: {
-    var mode = 0
-    var toplevels = Hyprland.toplevels.values
-    for (var i = 0; i < toplevels.length; i++) {
-      var toplevel = toplevels[i]
-      if (!toplevel.workspace || toplevel.workspace.id !== workspaceId) continue
-      var ipc = toplevel.lastIpcObject
-      mode = Math.max(mode, ipc && ipc.fullscreen ? ipc.fullscreen : 0)
-    }
-    return mode
+  // The special workspace shown over the regular one, if any. Hyprland names
+  // it in the activespecial event, which does not refresh the monitor.
+  property string specialWorkspace: {
+    var special = monitor && monitor.lastIpcObject ? monitor.lastIpcObject.specialWorkspace : null
+    return special && special.name ? special.name : ""
   }
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (event.name !== "activespecial" || !window.monitor) return
+      var parts = event.data.split(",")
+      if (parts.pop() === window.monitor.name) window.specialWorkspace = parts.join(",")
+    }
+  }
+  // The most fullscreen window the user sees, as Hyprland counts it: 1 is
+  // maximized, and 2 or 3 fullscreen.
+  readonly property int fullscreenMode: DockModel.fullscreenMode(Hyprland.toplevels.values.map(function(toplevel) {
+    var ipc = toplevel.lastIpcObject
+    return {
+      workspaceId: toplevel.workspace ? toplevel.workspace.id : null,
+      workspaceName: toplevel.workspace ? toplevel.workspace.name : "",
+      fullscreen: ipc ? ipc.fullscreen : 0
+    }
+  }), workspaceId, specialWorkspace)
   readonly property bool shown: !!dock && dock.isFloating(workspaceId) && fullscreenMode < 2
   // With auto-hide on, the dock waits off screen until the pointer reaches its
   // edge, and stays while the pointer, a menu, or a drag still needs it. A

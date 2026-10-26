@@ -170,6 +170,20 @@ function pickWindow(windows, workspaceId) {
   return order[0]
 }
 
+// The most fullscreen window the user sees on a monitor, as Hyprland counts
+// it: 1 is maximized, and 2 or 3 fullscreen. A special workspace shown on the
+// monitor counts too, since the screensaver opens fullscreen on one. Windows
+// are { workspaceId, workspaceName, fullscreen }.
+function fullscreenMode(windows, workspaceId, specialWorkspace) {
+  var mode = 0
+  var list = windows || []
+  for (var i = 0; i < list.length; i++) {
+    var window = list[i]
+    if (window.workspaceId !== workspaceId && !(specialWorkspace && window.workspaceName === specialWorkspace)) continue
+    mode = Math.max(mode, window.fullscreen || 0)
+  }
+  return mode
+}
 
 if (typeof module !== "undefined") {
   module.exports = {
@@ -185,6 +199,7 @@ if (typeof module !== "undefined") {
     orderWithKeyAt: orderWithKeyAt,
     dropIndex: dropIndex,
     pinsInOrder: pinsInOrder,
-    pickWindow: pickWindow
+    pickWindow: pickWindow,
+    fullscreenMode: fullscreenMode
   }
 }

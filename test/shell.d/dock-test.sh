@@ -109,6 +109,13 @@ assertEqual(dock.pickWindow(foot, 3), 1, 'dock restores a minimized window befor
 assertEqual(dock.pickWindow(foot.map((w, i) => Object.assign({}, w, { activated: i === 2 })), 4), 1, 'dock cycles from the window here to the minimized one')
 assertEqual(dock.pickWindow([], 4), -1, 'dock has no window to pick for an app that is not running')
 
+const screens = [
+  { workspaceId: 4, workspaceName: '4', fullscreen: 1 },
+  { workspaceId: -98, workspaceName: 'special:screensaver-DP-1', fullscreen: 2 }
+]
+assertEqual(dock.fullscreenMode(screens, 4, ''), 1, 'dock counts only the regular workspace while no special one is shown')
+assertEqual(dock.fullscreenMode(screens, 4, 'special:screensaver-DP-1'), 2, 'dock counts a fullscreen window on the special workspace shown over it')
+
 JS
 
 home="$TMPDIR/home"
