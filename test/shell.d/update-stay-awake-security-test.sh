@@ -455,7 +455,7 @@ elif sys.argv[2] == 'idle':
     anchor = '''printf '%s\\n' "$idle_owner" >"$stay_awake_state"'''
     edits = [(anchor, '{ ' + anchor + ' && { ' + pause + '; }; }')]
 else:
-    anchor = '  if [[ ! -f $stay_awake_state ]]; then'
+    anchor = '  [[ ! -f $stay_awake_state ]] ||'
     edits = [(anchor, '  ' + pause + '\n' + anchor)]
 for old, new in edits:
     assert s.count(old) == 1, old
@@ -494,6 +494,25 @@ PY
   cp "$test_tmp/helper-before-pause" "$mapped_helper"
 done
 pass "cancellation through idle setup stops the child and restores only update-owned idle state"
+
+# An update that never reached its cleanup (power loss, SIGKILL) leaves its
+# marker in HOME, while the reboot clears its owner record from the runtime dir.
+run_helper start
+read -r _ crashed_pid _ <"$state_dir/inhibit-pid"
+kill "$crashed_pid"
+wait_dead "$crashed_pid" || fail "interrupted update inhibitor stops"
+rm -rf -- "$state_dir"
+[[ -s $idle_marker ]] || fail "interrupted update leaves its owned Stay Awake marker"
+run_helper start
+run_helper stop
+[[ ! -e $idle_marker ]] || fail "the next update leaves an interrupted update's Stay Awake marker"
+mkdir -p "${idle_marker%/*}"
+touch "$idle_marker"
+run_helper start
+run_helper stop
+[[ -e $idle_marker && ! -s $idle_marker ]] || fail "an update changes the user's Stay Awake choice"
+rm -f "$idle_marker"
+pass "the next update reclaims a Stay Awake marker an interrupted update left behind"
 
 namespace_args=()
 namespace_probe_error="$test_tmp/namespace-probe.err"
